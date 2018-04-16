@@ -1,4 +1,4 @@
-import setupWebRTCProxy from '../';
+import setupWebRTCProxy from '../lib';
 
 describe('webrtc-proxy-client', () => {
   let webrtcServer;
