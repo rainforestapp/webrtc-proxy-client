@@ -4,6 +4,7 @@
   "description": "",
   "main": "./dist/index.js",
   "module": "./lib/index.js",
+  "browser": "./lib/index.js",
   "scripts": {
     "prettify": "prettier --single-quote --write \"lib/**/*.js\"",
     "build": "babel lib --out-dir dist",
