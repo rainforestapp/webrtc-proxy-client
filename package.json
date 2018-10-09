@@ -9,6 +9,10 @@
     "prepare": "npm run build",
     "test": "jest"
   },
+  "jest": {
+    "verbose": true,
+    "testURL": "http://localhost/"
+  },
   "dependencies": {
     "@novnc/novnc": "^1.0.0",
     "babel-cli": "^6.26.0",
