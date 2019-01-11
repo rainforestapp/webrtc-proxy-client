@@ -1,6 +1,6 @@
 {
   "name": "@rainforestqa/webrtc-client",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "description": "",
   "main": "./dist/index.js",
   "scripts": {
@@ -10,7 +10,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@novnc/novnc": "1.0.0",
+    "noVNC": "git+https://git@github.com:rainforestapp/noVNC.git",
     "babel-cli": "6.26.0",
     "babel-plugin-transform-class-properties": "6.24.1",
     "webrtc-adapter": "6.4.0"
