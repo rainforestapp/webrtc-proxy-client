@@ -1,0 +1,191 @@
+version: 2
+
+experimental:
+  notify:
+    branches:
+      only:
+        - master
+        - develop
+    tags:
+      only: /v[0-9]+(\.[0-9]+)*/
+
+defaults: &defaults
+  working_directory: ~/rainforestapp/webrtc-proxy-client
+  docker:
+    - image: circleci/node:8.11.2
+
+jobs:
+  checkout:
+    <<: *defaults
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - dependency-cache-{{ checksum "package-lock.json" }}
+
+      - run:
+          name: Install NPM Dependencies
+          command: npm install
+
+      - save_cache:
+          paths:
+            - node_modules
+          key: dependency-cache-{{ checksum "package-lock.json" }}
+
+      - persist_to_workspace:
+          root: ~/rainforestapp/webrtc-proxy-client
+          paths: .
+
+  test:
+    <<: *defaults
+
+    steps:
+      - attach_workspace:
+          at: ~/rainforestapp/webrtc-proxy-client
+
+      - run:
+          name: Run Jest Tests
+          command: npm run test
+
+  build:
+    <<: *defaults
+
+    steps:
+      - attach_workspace:
+          at: ~/rainforestapp/webrtc-proxy-client
+
+      - run:
+          name: Build JS code
+          command: npm run build
+
+      - persist_to_workspace:
+          root: ~/rainforestapp/webrtc-proxy-client
+          paths: dist
+
+  push_tag_if_package_version_is_updated:
+    <<: *defaults
+
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/rainforestapp/webrtc-proxy-client
+
+      # How to add ssh key described here https://circleci.com/docs/2.0/configuration-reference/#addsshkeys
+      - add_ssh_keys:
+          fingerprints:
+            # fingerprint of ssh key used for authenticating with Github
+            - "dc:56:b5:a7:9a:66:f2:bf:d5:79:46:b7:95:c4:a9:20"
+
+      - run:
+          name: Push as git tag if new package.json version is found
+          command: |
+            PUBLISHED_PACKAGE_VERSION=v$(npm view @rainforestqa/farmer version)
+            PACKAGE_VERSION=$(node -p -e "'v' + require('./package.json').version")
+            if [[ $PUBLISHED_PACKAGE_VERSION != $PACKAGE_VERSION ]]; then git tag $PACKAGE_VERSION && git push origin $PACKAGE_VERSION ; else exit 0; fi
+
+  check_package_version_equals_git_tag:
+    <<: *defaults
+
+    steps:
+      - attach_workspace:
+          at: ~/rainforestapp/webrtc-proxy-client
+
+      - run:
+          name: Check if git commit tag equals with version from package.json
+          command: |
+            PACKAGE_VERSION=$(jq -r '"v"+.version' package.json)
+            if [[ $PACKAGE_VERSION = $CIRCLE_TAG ]]; then exit 0; else exit 1; fi
+
+  publish:
+    <<: *defaults
+
+    steps:
+      - attach_workspace:
+          at: ~/rainforestapp/webrtc-proxy-client
+
+      - run:
+          name: Write NPM Token to ~/.npmrc
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+
+      - run:
+          name: Publish to NPM
+          command: npm publish --access=public
+
+workflows:
+  version: 2
+
+  test:
+    jobs:
+      - checkout:
+          filters:
+            branches:
+              ignore: master
+      - test:
+          filters:
+            branches:
+              ignore: master
+          requires:
+            - checkout
+
+  push_tag_for_new_package_version:
+    jobs:
+      - checkout:
+          filters:
+            branches:
+              only: master
+      - test:
+          filters:
+            branches:
+              only: master
+          requires:
+            - checkout
+      - push_tag_if_package_version_is_updated:
+          filters:
+            branches:
+              only: master
+          requires:
+            - test
+
+  publish_new_package_version:
+    jobs:
+      - checkout:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+      - test:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+          requires:
+            - checkout
+      - check_package_version_equals_git_tag:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+          requires:
+            - checkout
+      - build:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+          requires:
+            - test
+            - check_package_version_equals_git_tag
+      - publish:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+          requires:
+            - build

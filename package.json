@@ -9,6 +9,10 @@
     "prepare": "npm run build",
     "test": "jest"
   },
+  "jest": {
+    "verbose": true,
+    "testURL": "http://localhost/"
+  },
   "dependencies": {
     "noVNC": "git+https://git@github.com:rainforestapp/noVNC.git",
     "babel-cli": "6.26.0",
